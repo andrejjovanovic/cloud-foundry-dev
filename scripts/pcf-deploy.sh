@@ -15,6 +15,7 @@ cd $CF_WORKSPACE/workspace
 # mv bosh-cli-5.5.1-linux-amd64 bosh
 # chmod +x ./bosh
 # sudo mv ./bosh /usr/bin/bosh
+# rm bosh-cli-5.5.1-linux-amd64
 # echo "Bosh cli deployed | `bosh -v`"
 
 # echo "#### Cloud Foundry CLI #####"
@@ -25,7 +26,7 @@ cd $CF_WORKSPACE/workspace
 
 echo "#### BOSH deploy ######"
 # Clone the bosh-deployment repo in seperate folder
-# git clone https://github.com/cloudfoundry/bosh-deployment
+git clone https://github.com/cloudfoundry/bosh-deployment
 cd $CF_WORKSPACE/workspace/bosh-deployment
 # Deploy bosh environment to Virtual Machine
 
@@ -34,16 +35,16 @@ bosh create-env bosh.yml --state=state.json -o gcp/cpi.yml -o gcp/bosh-lite-vm-t
 export BOSH_ENVIRONMENT=$GLOBAL_IP
 export BOSH_CA_CERT="$(bosh int creds.yml --path /director_ssl/ca)"
 export BOSH_CLIENT=admin
-export BOSH_CLIENT_SECRET=`bosh int ./creds.yml --path /admin_password`
+export BOSH_CLIENT_SECRET=`bosh int creds.yml --path /admin_password`
 export SYSTEM_DOMAIN=$BOSH_ENVIRONMENT.sslip.io
-bosh alias-env bosh -e $BOSH_ENVIRONMENT --ca-cert < (bosh int ./creds.yml --path /director_ssl/ca)
+bosh alias-env bosh-lite -e $BOSH_ENVIRONMENT --ca-cert "$(bosh int creds.yml --path /director_ssl/ca)"
 
 echo "#### Deploy CloudFoundry ####"
 # Clone the cf-deployment repository
 cd $CF_WORKSPACE/workspace
 git clone https://github.com/cloudfoundry/cf-deployment
 #cd ~/workspace/cf-deployment
-
+cd $CF_WORKSPACE/workspace/bosh-deployment
 # Replace the stemcell version with latest one in cf-deployment file
 sed -i 's/315.36/315.41/g' $CF_WORKSPACE/workspace/cf-deployment/cf-deployment.yml
 # Upload cloud config to bosh director
@@ -51,7 +52,7 @@ bosh update-cloud-config $CF_WORKSPACE/workspace/cf-deployment/iaas-support/bosh
 # Upload stemcells to virtual machine
 bosh upload-stemcell "https://s3.amazonaws.com/bosh-core-stemcells/315.41/bosh-stemcell-315.41-warden-boshlite-ubuntu-xenial-go_agent.tgz"
 # Add the configuration for DNS resolving
-bosh update-runtime-config < "$(bosh int bosh-deployment/runtime-configs/dns.yml --vars-store deployment-vars.yml)" --name dns
+bosh update-runtime-config "$(bosh int runtime-configs/dns.yml --vars-store deployment-vars.yml)" --name dns
 # Deploy cloud foundry using the bosh
 bosh -d cf deploy $CF_WORKSPACE/workspace/cf-deployment/cf-deployment.yml -o $CF_WORKSPACE/workspace/cf-deployment/operations/bosh-lite.yml -o $CF_WORKSPACE/workspace/cf-deployment/operations/use-compiled-releases.yml --vars-store deployment-vars.yml -v system_domain=$SYSTEM_DOMAIN
 # Printing out the credentials
