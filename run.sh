@@ -14,6 +14,7 @@ export NETWORK_NAME="$(echo var.network_name | terraform console)"
 export SUBNET_NAME="$(echo var.subnet_name | terraform console)"
 export SUBNET_GATEWAY="$(terraform output subnet_gateway)"
 export INTERNAL_IP="$(echo $SUBNET_GATEWAY | sed 's:[^.]*$:2:')"
+export COMPUTE_REGION_ID="$TF_VAR_region_id-c"
 
 # Runnign pcf deploy
 sh $CF_WORKSPACE/scripts/pcf-deploy.sh
