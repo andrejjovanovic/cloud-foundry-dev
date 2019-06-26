@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Setting env variables
 export CF_WORKSPACE="$(pwd)"
 export TF_VAR_credentials_path="~/account.json"
@@ -17,4 +17,4 @@ export INTERNAL_IP="$(echo $SUBNET_GATEWAY | sed 's:[^.]*$:2:')"
 export COMPUTE_REGION_ID="$TF_VAR_region_id-c"
 
 # Runnign pcf deploy
-sh $CF_WORKSPACE/scripts/pcf-deploy.sh
+$CF_WORKSPACE/scripts/./pcf-deploy.sh

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 echo "Welcome to the cf-lite deployment based on bosh-lite v2 and cfv2."
 echo ""
 echo ""
@@ -11,18 +11,27 @@ echo " ╚═════╝╚═╝         ╚══════╝╚═╝ 
 
 cd $CF_WORKSPACE/workspace
 
-# wget -q https://github.com/cloudfoundry/bosh-cli/releases/download/v5.5.1/bosh-cli-5.5.1-linux-amd64
-# mv bosh-cli-5.5.1-linux-amd64 bosh
-# chmod +x ./bosh
-# sudo mv ./bosh /usr/bin/bosh
-# rm bosh-cli-5.5.1-linux-amd64
-# echo "Bosh cli deployed | `bosh -v`"
+type -t bosh 1> /dev/null  && cli_installed="true" || cli_installed="false"
 
-# echo "#### Cloud Foundry CLI #####"
-# wget -q -O - https://packages.cloudfoundry.org/debian/cli.cloudfoundry.org.key | sudo apt-key add -
-# echo "deb https://packages.cloudfoundry.org/debian stable main" | sudo tee /etc/apt/sources.list.d/cloudfoundry-cli.list
-# sudo apt-get update
-# sudo apt-get install cf-cli
+if [ $cli_installed != true ]; then
+    wget -q https://github.com/cloudfoundry/bosh-cli/releases/download/v5.5.1/bosh-cli-5.5.1-linux-amd64
+    mv bosh-cli-5.5.1-linux-amd64 bosh
+    chmod +x ./bosh
+    sudo mv ./bosh /usr/bin/bosh
+    rm bosh-cli-5.5.1-linux-amd64
+    echo "Bosh cli deployed | `bosh -v`"
+fi
+
+type -t cf 1> /dev/null  && cli_installed="true" || cli_installed="false"
+
+if [ $cli_installed != true ]; then
+    echo "#### Cloud Foundry CLI #####"
+    wget -q -O - https://packages.cloudfoundry.org/debian/cli.cloudfoundry.org.key | sudo apt-key add -
+    echo "deb https://packages.cloudfoundry.org/debian stable main" | sudo tee /etc/apt/sources.list.d/cloudfoundry-cli.list
+    sudo apt-get update
+    sudo apt-get install cf-cli
+fi
+
 
 echo "#### BOSH deploy ######"
 # Clone the bosh-deployment repo in seperate folder
@@ -37,7 +46,7 @@ export BOSH_CA_CERT="$(bosh int creds.yml --path /director_ssl/ca)"
 export BOSH_CLIENT=admin
 export BOSH_CLIENT_SECRET=`bosh int creds.yml --path /admin_password`
 export SYSTEM_DOMAIN=$BOSH_ENVIRONMENT.sslip.io
-bosh alias-env bosh-lite -e $BOSH_ENVIRONMENT --ca-cert "$(bosh int creds.yml --path /director_ssl/ca)"
+bosh alias-env bosh1 -e $BOSH_ENVIRONMENT --ca-cert "$(bosh int creds.yml --path /director_ssl/ca)"
 
 echo "#### Deploy CloudFoundry ####"
 # Clone the cf-deployment repository
@@ -52,7 +61,10 @@ bosh update-cloud-config $CF_WORKSPACE/workspace/cf-deployment/iaas-support/bosh
 # Upload stemcells to virtual machine
 bosh upload-stemcell "https://s3.amazonaws.com/bosh-core-stemcells/315.41/bosh-stemcell-315.41-warden-boshlite-ubuntu-xenial-go_agent.tgz"
 # Add the configuration for DNS resolving
-bosh update-runtime-config "$(bosh int runtime-configs/dns.yml --vars-store deployment-vars.yml)" --name dns
+bosh update-runtime-config runtime-configs/dns.yml --name dns
+bosh update-runtime-config <(bosh int runtime-configs/dns.yml --vars-store deployment-vars.yml) --name dns
+#bosh int creds.yml --path /director_ssl/ca > dnscert.yml
+#bosh update-runtime-config dnscert.yml --name dns
 # Deploy cloud foundry using the bosh
 bosh -d cf deploy $CF_WORKSPACE/workspace/cf-deployment/cf-deployment.yml -o $CF_WORKSPACE/workspace/cf-deployment/operations/bosh-lite.yml -o $CF_WORKSPACE/workspace/cf-deployment/operations/use-compiled-releases.yml --vars-store deployment-vars.yml -v system_domain=$SYSTEM_DOMAIN
 # Printing out the credentials
